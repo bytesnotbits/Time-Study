@@ -42,27 +42,36 @@
     .live-time { margin: 20px 0 4px; font-size: clamp(3rem, 15vw, 4.5rem); font-variant-numeric: tabular-nums; line-height: 1; letter-spacing: -.055em; text-align: center; }
     .live-caption { text-align: center; color: var(--muted); font-size: .88rem; }
 
-    .task-switch { position: relative; margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; background: #e5e7eb; border-radius: 18px; padding: 4px; user-select: none; overflow: hidden; }
-    .task-switch::before { content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 14px; background: var(--software); transition: transform .24s ease, background .24s ease; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
-    .task-switch[data-active="warehouse"]::before { transform: translateX(100%); background: var(--warehouse); }
+    /* Task switch — segmented slider for a small set of tasks. The sliding
+       pill's width and position are derived from --task-count / --active-index
+       so the same markup serves 2 tasks (identical to the original) or more. */
+    .task-switch { position: relative; margin-top: 20px; display: grid; grid-template-columns: repeat(var(--task-count, 2), 1fr); background: #e5e7eb; border-radius: 18px; padding: 4px; user-select: none; overflow: hidden; }
+    .task-switch::before { content: ""; position: absolute; top: 4px; bottom: 4px; left: 4px; width: calc((100% - 8px) / var(--task-count, 2)); border-radius: 14px; background: var(--active-color, var(--software)); transform: translateX(calc(var(--active-index, 0) * 100%)); transition: transform .24s ease, background .24s ease; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
     .task-option { position: relative; z-index: 1; border: 0; background: transparent; color: #4b5563; min-height: 64px; padding: 8px 10px; font-weight: 800; border-radius: 14px; }
     .task-option.active { color: white; }
-    .task-option small { display: block; font-weight: 600; opacity: .85; margin-top: 2px; }
     .task-option-label { display: block; line-height: 1.2; }
+
+    /* Task switch — vertical scrolling list once the set grows past the point
+       where a segmented control stays legible (industry practice: ~5 max). */
+    .task-switch.list { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .task-switch.list::before { display: none; }
+    .task-switch.list .task-option { min-height: 50px; text-align: left; padding: 12px 16px; background: rgba(255,255,255,.7); color: #374151; }
+    .task-switch.list .task-option.active { color: white; }
 
     .pause-button { width: 100%; margin-top: 14px; border: 0; border-radius: 18px; min-height: 58px; background: #111827; color: white; font-weight: 800; font-size: 1.03rem; }
     .pause-button.paused { background: var(--success); }
 
     .totals { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
-    .total-card { padding: 16px; }
-    .total-card.software { border-top: 5px solid var(--software); }
-    .total-card.warehouse { border-top: 5px solid var(--warehouse); }
+    .total-card { padding: 16px; border-top: 5px solid transparent; }
     .total-name { font-weight: 800; font-size: .92rem; min-height: 38px; }
     .reported { font-size: 1.75rem; font-weight: 900; margin-top: 10px; font-variant-numeric: tabular-nums; }
     .actual { margin-top: 4px; color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
     .adjust-link { margin-top: 12px; border: 0; background: transparent; color: #374151; padding: 0; font-weight: 750; text-decoration: underline; text-underline-offset: 3px; }
     .card-links { display: flex; flex-wrap: wrap; gap: 14px; }
     .card-links .adjust-link { margin-top: 12px; }
+    .danger-link { color: var(--danger); }
+
+    .add-task { width: 100%; margin-top: 12px; min-height: 50px; border-radius: 16px; border: 1px dashed #cbd5e1; background: transparent; color: #374151; font-weight: 800; }
 
     .actions { margin-top: 14px; padding: 16px; display: grid; gap: 10px; }
     .secondary, .submit { min-height: 52px; border-radius: 16px; font-weight: 800; }
@@ -105,38 +114,14 @@
       <div class="live-time" id="liveTime">00:00:00</div>
       <div class="live-caption">Time in current session</div>
 
-      <div class="task-switch" id="taskSwitch" data-active="software" aria-label="Select current task">
-        <button class="task-option active" id="softwareButton" data-task="software">
-          <span class="task-option-label" id="softwareSwitchLabel">Software Development</span>
-        </button>
-        <button class="task-option" id="warehouseButton" data-task="warehouse">
-          <span class="task-option-label" id="warehouseSwitchLabel">Warehouse Operations</span>
-        </button>
-      </div>
+      <div class="task-switch" id="taskSwitch" aria-label="Select current task"></div>
 
-      <button class="pause-button paused" id="pauseButton">Start Software Development</button>
+      <button class="pause-button paused" id="pauseButton">Start</button>
     </section>
 
-    <section class="totals" aria-label="Today's totals">
-      <article class="card total-card software">
-        <div class="total-name" id="softwareName">Software Development</div>
-        <div class="reported" id="softwareReported">0.00 hr</div>
-        <div class="actual" id="softwareActual">Actual: 0m</div>
-        <div class="card-links">
-          <button class="adjust-link" data-adjust="software">Adjust time</button>
-          <button class="adjust-link" data-rename="software">Rename</button>
-        </div>
-      </article>
-      <article class="card total-card warehouse">
-        <div class="total-name" id="warehouseName">Warehouse Operations</div>
-        <div class="reported" id="warehouseReported">0.00 hr</div>
-        <div class="actual" id="warehouseActual">Actual: 0m</div>
-        <div class="card-links">
-          <button class="adjust-link" data-adjust="warehouse">Adjust time</button>
-          <button class="adjust-link" data-rename="warehouse">Rename</button>
-        </div>
-      </article>
-    </section>
+    <section class="totals" id="totals" aria-label="Today's totals"></section>
+
+    <button class="add-task" id="addTaskButton">+ Add task</button>
 
     <section class="card actions">
       <button class="secondary" id="exportButton">Export CSV</button>
@@ -171,6 +156,30 @@
     </form>
   </dialog>
 
+  <dialog id="addDialog">
+    <form class="dialog-body" id="addForm">
+      <h2>Add task</h2>
+      <p>Name a new task to track. You can rename or remove it later.</p>
+      <label class="field-label" for="addInput">Task name</label>
+      <input class="minutes-input" id="addInput" type="text" maxlength="40" autocomplete="off" placeholder="e.g. Installations" required />
+      <div class="dialog-actions">
+        <button class="cancel" type="button" id="cancelAdd">Cancel</button>
+        <button class="confirm" type="button" id="saveAdd">Add task</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="removeDialog">
+    <form class="dialog-body" id="removeForm">
+      <h2>Remove task?</h2>
+      <p id="removeMessage">This will remove the task.</p>
+      <div class="dialog-actions">
+        <button class="cancel" type="button" id="cancelRemove">Cancel</button>
+        <button class="confirm danger" type="button" id="confirmRemove">Remove</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="submitDialog">
     <form method="dialog" class="dialog-body">
       <h2>Submit and reset?</h2>
@@ -190,12 +199,28 @@
 
       const STORAGE_KEY = 'timeStudyStateV1';
       const HISTORY_KEY = 'timeStudyHistoryV1';
+
+      // Above this many tasks the segmented slider stops being legible on a
+      // phone, so the switcher becomes a vertical scrolling list instead.
+      const SLIDER_MAX = 5;
+
+      // First two colors match the original Software/Warehouse look; the rest
+      // are assigned in order as new tasks are added.
+      const TASK_PALETTE = [
+        '#2563eb', '#d97706', '#7c3aed', '#db2777', '#0891b2', '#16a34a',
+        '#dc2626', '#4f46e5', '#0d9488', '#ea580c', '#9333ea', '#0284c7'
+      ];
+
       const DEFAULT_TASK_NAMES = {
         software: 'Software Development',
         warehouse: 'Warehouse Operations'
       };
-      function taskName(task) {
-        return (state.taskNames && state.taskNames[task]) || DEFAULT_TASK_NAMES[task];
+
+      function defaultTasks() {
+        return [
+          { id: 'software', name: DEFAULT_TASK_NAMES.software, color: '#2563eb' },
+          { id: 'warehouse', name: DEFAULT_TASK_NAMES.warehouse, color: '#d97706' }
+        ];
       }
 
       const el = id => document.getElementById(id);
@@ -204,17 +229,9 @@
         currentStatus: el('currentStatus'),
         liveTime: el('liveTime'),
         taskSwitch: el('taskSwitch'),
-        softwareButton: el('softwareButton'),
-        warehouseButton: el('warehouseButton'),
-        softwareSwitchLabel: el('softwareSwitchLabel'),
-        warehouseSwitchLabel: el('warehouseSwitchLabel'),
         pauseButton: el('pauseButton'),
-        softwareName: el('softwareName'),
-        warehouseName: el('warehouseName'),
-        softwareReported: el('softwareReported'),
-        warehouseReported: el('warehouseReported'),
-        softwareActual: el('softwareActual'),
-        warehouseActual: el('warehouseActual'),
+        totals: el('totals'),
+        addTaskButton: el('addTaskButton'),
         adjustDialog: el('adjustDialog'),
         adjustTitle: el('adjustTitle'),
         adjustMinutes: el('adjustMinutes'),
@@ -227,6 +244,16 @@
         renameForm: el('renameForm'),
         cancelRename: el('cancelRename'),
         saveRename: el('saveRename'),
+        addDialog: el('addDialog'),
+        addInput: el('addInput'),
+        addForm: el('addForm'),
+        cancelAdd: el('cancelAdd'),
+        saveAdd: el('saveAdd'),
+        removeDialog: el('removeDialog'),
+        removeMessage: el('removeMessage'),
+        removeForm: el('removeForm'),
+        cancelRemove: el('cancelRemove'),
+        confirmRemove: el('confirmRemove'),
         submitDialog: el('submitDialog'),
         submitButton: el('submitButton'),
         confirmSubmit: el('confirmSubmit'),
@@ -234,12 +261,47 @@
         toast: el('toast')
       };
 
-      let selectedTask = 'software';
+      let selectedTask = null;
       let adjustTask = null;
       let renameTask = null;
+      let removeTask = null;
       let toastTimer = null;
       let touchStartX = null;
+
+      // DOM maps rebuilt by renderStructure(), keyed by task id, so the
+      // per-second render() can update text without touching layout.
+      const switchEls = {};
+      const totalsEls = {};
+
       let state = loadState();
+
+      /* ---------- task helpers ---------- */
+
+      function taskById(id) {
+        return state.tasks.find(t => t.id === id) || null;
+      }
+
+      function taskName(id) {
+        const t = taskById(id);
+        return t ? t.name : '';
+      }
+
+      function validTaskId(id) {
+        if (id && state.tasks.some(t => t.id === id)) return id;
+        return state.tasks[0] ? state.tasks[0].id : null;
+      }
+
+      function makeTaskId() {
+        return 'task-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e6).toString(36);
+      }
+
+      function nextColor() {
+        const used = new Set(state.tasks.map(t => t.color));
+        const free = TASK_PALETTE.find(c => !used.has(c));
+        return free || TASK_PALETTE[state.tasks.length % TASK_PALETTE.length];
+      }
+
+      /* ---------- date + state ---------- */
 
       function localDateKey(date = new Date()) {
         const y = date.getFullYear();
@@ -252,27 +314,61 @@
         return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).getTime();
       }
 
-      function newState() {
+      function freshDayState(tasks) {
+        const totalsMs = {};
+        const adjustmentsMs = {};
+        tasks.forEach(t => { totalsMs[t.id] = 0; adjustmentsMs[t.id] = 0; });
         return {
           date: localDateKey(),
-          totalsMs: { software: 0, warehouse: 0 },
-          adjustmentsMs: { software: 0, warehouse: 0 },
-          taskNames: { ...DEFAULT_TASK_NAMES },
+          tasks: tasks.map(t => ({ ...t })),
+          totalsMs,
+          adjustmentsMs,
           activeTask: null,
-          lastSelectedTask: 'software',
+          lastSelectedTask: tasks[0] ? tasks[0].id : null,
           startedAt: null,
           sessionStartedAt: null
         };
       }
 
+      function newState() {
+        return freshDayState(defaultTasks());
+      }
+
+      // Bring any stored shape up to the current task-array model. Handles the
+      // original two-key layout (software/warehouse, optional taskNames) so an
+      // existing user's in-progress day is preserved, not wiped.
+      function migrateState(parsed) {
+        if (!parsed || !parsed.totalsMs) return null;
+
+        if (!Array.isArray(parsed.tasks)) {
+          const names = parsed.taskNames || DEFAULT_TASK_NAMES;
+          parsed.tasks = [
+            { id: 'software', name: names.software || DEFAULT_TASK_NAMES.software, color: '#2563eb' },
+            { id: 'warehouse', name: names.warehouse || DEFAULT_TASK_NAMES.warehouse, color: '#d97706' }
+          ];
+          delete parsed.taskNames;
+        }
+        if (!parsed.tasks.length) parsed.tasks = defaultTasks();
+
+        parsed.adjustmentsMs = parsed.adjustmentsMs || {};
+        parsed.tasks.forEach((t, i) => {
+          if (!t.color) t.color = TASK_PALETTE[i % TASK_PALETTE.length];
+          if (typeof parsed.totalsMs[t.id] !== 'number') parsed.totalsMs[t.id] = 0;
+          if (typeof parsed.adjustmentsMs[t.id] !== 'number') parsed.adjustmentsMs[t.id] = 0;
+        });
+
+        const ids = new Set(parsed.tasks.map(t => t.id));
+        if (parsed.activeTask && !ids.has(parsed.activeTask)) parsed.activeTask = null;
+        if (!parsed.lastSelectedTask || !ids.has(parsed.lastSelectedTask)) {
+          parsed.lastSelectedTask = parsed.tasks[0].id;
+        }
+        return parsed;
+      }
+
       function loadState() {
         try {
-          const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
-          if (parsed && parsed.totalsMs) {
-            if (!parsed.taskNames) parsed.taskNames = { ...DEFAULT_TASK_NAMES };
-            return parsed;
-          }
-          return newState();
+          const parsed = migrateState(JSON.parse(localStorage.getItem(STORAGE_KEY)));
+          return parsed || newState();
         } catch {
           return newState();
         }
@@ -302,13 +398,15 @@
         toastTimer = setTimeout(() => ui.toast.classList.remove('show'), 2400);
       }
 
+      /* ---------- timing ---------- */
+
       function settleRunningTime(endTime = Date.now()) {
         if (!state.activeTask || !state.startedAt) return;
         const start = Number(state.startedAt);
         const cap = midnightAfter(new Date(start));
         const effectiveEnd = Math.min(endTime, cap);
         if (effectiveEnd > start) {
-          state.totalsMs[state.activeTask] += effectiveEnd - start;
+          state.totalsMs[state.activeTask] = (state.totalsMs[state.activeTask] || 0) + (effectiveEnd - start);
         }
         state.startedAt = null;
         state.sessionStartedAt = null;
@@ -320,32 +418,55 @@
 
         if (state.activeTask && state.startedAt) settleRunningTime(Date.now());
         archiveState('Automatic midnight close');
-        const keepNames = state.taskNames;
-        state = newState();
-        state.taskNames = keepNames || { ...DEFAULT_TASK_NAMES };
+        state = freshDayState(state.tasks);
         selectedTask = state.lastSelectedTask;
         saveState();
         showToast('New day started. Yesterday was saved.');
       }
 
+      // A saved day: one entry per task (name snapshot + net/adjustment ms),
+      // which the CSV flattens to one row per day per task.
+      function dayRecord(note, live) {
+        return {
+          date: state.date,
+          note,
+          savedAt: new Date().toISOString(),
+          tasks: state.tasks.map(t => {
+            const netMs = live
+              ? liveTotalMs(t.id)
+              : Math.max(0, (state.totalsMs[t.id] || 0) + (state.adjustmentsMs[t.id] || 0));
+            return { name: t.name, netMs, adjustmentMs: (state.adjustmentsMs[t.id] || 0) };
+          })
+        };
+      }
+
+      // Accept both the current per-task shape and the original wide shape
+      // (softwareMs/warehouseMs) so any pre-existing history still exports.
+      function normalizeDayRecord(r) {
+        if (r && Array.isArray(r.tasks)) return r;
+        const tasks = [];
+        if (r && 'softwareMs' in r) {
+          tasks.push({ name: DEFAULT_TASK_NAMES.software, netMs: r.softwareMs || 0, adjustmentMs: r.softwareAdjustmentMs || 0 });
+        }
+        if (r && 'warehouseMs' in r) {
+          tasks.push({ name: DEFAULT_TASK_NAMES.warehouse, netMs: r.warehouseMs || 0, adjustmentMs: r.warehouseAdjustmentMs || 0 });
+        }
+        return { date: r.date, note: r.note, savedAt: r.savedAt, tasks };
+      }
+
       function archiveState(note) {
-        const hasTime = Object.values(state.totalsMs).some(v => v > 0) || Object.values(state.adjustmentsMs).some(v => v !== 0);
+        const hasTime = state.tasks.some(t => (state.totalsMs[t.id] || 0) > 0 || (state.adjustmentsMs[t.id] || 0) !== 0);
         if (!hasTime) return;
         const history = loadHistory();
-        history.push({
-          date: state.date,
-          softwareMs: Math.max(0, state.totalsMs.software + state.adjustmentsMs.software),
-          warehouseMs: Math.max(0, state.totalsMs.warehouse + state.adjustmentsMs.warehouse),
-          softwareAdjustmentMs: state.adjustmentsMs.software,
-          warehouseAdjustmentMs: state.adjustmentsMs.warehouse,
-          note,
-          savedAt: new Date().toISOString()
-        });
+        history.push(dayRecord(note, false));
         saveHistory(history);
       }
 
+      /* ---------- task selection ---------- */
+
       function switchTask(task) {
         handleDateBoundary();
+        if (!validTaskId(task)) return;
         selectedTask = task;
         state.lastSelectedTask = task;
 
@@ -373,18 +494,20 @@
           render();
           showToast('Timer paused');
         } else {
-          switchTask(selectedTask);
+          switchTask(validTaskId(selectedTask));
         }
       }
 
       function liveTotalMs(task, now = Date.now()) {
-        let total = state.totalsMs[task] + state.adjustmentsMs[task];
+        let total = (state.totalsMs[task] || 0) + (state.adjustmentsMs[task] || 0);
         if (state.activeTask === task && state.startedAt) {
           const cap = midnightAfter(new Date(state.startedAt));
           total += Math.max(0, Math.min(now, cap) - state.startedAt);
         }
         return Math.max(0, total);
       }
+
+      /* ---------- formatting ---------- */
 
       function roundToQuarterHour(ms) {
         const minutes = ms / 60000;
@@ -412,23 +535,116 @@
         return `${h}:${m}:${s}`;
       }
 
+      /* ---------- structural render (only when the task set changes) ---------- */
+
+      function usingList() {
+        return state.tasks.length > SLIDER_MAX;
+      }
+
+      function renderTaskSwitch() {
+        const list = usingList();
+        ui.taskSwitch.classList.toggle('list', list);
+        ui.taskSwitch.style.setProperty('--task-count', state.tasks.length);
+        ui.taskSwitch.innerHTML = '';
+        for (const k in switchEls) delete switchEls[k];
+
+        state.tasks.forEach(t => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'task-option';
+          btn.dataset.task = t.id;
+          const label = document.createElement('span');
+          label.className = 'task-option-label';
+          label.textContent = t.name;
+          btn.appendChild(label);
+          btn.addEventListener('click', () => switchTask(t.id));
+          ui.taskSwitch.appendChild(btn);
+          switchEls[t.id] = { btn, label };
+        });
+      }
+
+      function renderTotals() {
+        ui.totals.innerHTML = '';
+        for (const k in totalsEls) delete totalsEls[k];
+        const canRemove = state.tasks.length > 1;
+
+        state.tasks.forEach(t => {
+          const card = document.createElement('article');
+          card.className = 'card total-card';
+          card.style.borderTopColor = t.color;
+          card.dataset.task = t.id;
+
+          const name = document.createElement('div');
+          name.className = 'total-name';
+          name.textContent = t.name;
+
+          const reported = document.createElement('div');
+          reported.className = 'reported';
+          reported.textContent = '0.00 hr';
+
+          const actual = document.createElement('div');
+          actual.className = 'actual';
+          actual.textContent = 'Actual: 00:00:00';
+
+          const links = document.createElement('div');
+          links.className = 'card-links';
+
+          const adjustBtn = document.createElement('button');
+          adjustBtn.className = 'adjust-link';
+          adjustBtn.textContent = 'Adjust time';
+          adjustBtn.addEventListener('click', () => showAdjustment(t.id));
+
+          const renameBtn = document.createElement('button');
+          renameBtn.className = 'adjust-link';
+          renameBtn.textContent = 'Rename';
+          renameBtn.addEventListener('click', () => showRename(t.id));
+
+          links.append(adjustBtn, renameBtn);
+
+          if (canRemove) {
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'adjust-link danger-link';
+            removeBtn.textContent = 'Remove';
+            removeBtn.addEventListener('click', () => showRemove(t.id));
+            links.appendChild(removeBtn);
+          }
+
+          card.append(name, reported, actual, links);
+          ui.totals.appendChild(card);
+          totalsEls[t.id] = { reported, actual, name };
+        });
+      }
+
+      function renderStructure() {
+        renderTaskSwitch();
+        renderTotals();
+      }
+
+      /* ---------- per-second render ---------- */
+
       function render() {
         const now = Date.now();
+        if (state.activeTask && !taskById(state.activeTask)) state.activeTask = null;
+        selectedTask = validTaskId(state.activeTask || state.lastSelectedTask || selectedTask);
         const active = state.activeTask;
-        selectedTask = active || state.lastSelectedTask || selectedTask;
+        const list = usingList();
 
         ui.todayDate.textContent = new Intl.DateTimeFormat(undefined, {
           weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
         }).format(new Date());
 
-        ui.taskSwitch.dataset.active = selectedTask;
-        ui.softwareButton.classList.toggle('active', selectedTask === 'software');
-        ui.warehouseButton.classList.toggle('active', selectedTask === 'warehouse');
+        const activeIndex = Math.max(0, state.tasks.findIndex(t => t.id === selectedTask));
+        ui.taskSwitch.style.setProperty('--active-index', activeIndex);
+        ui.taskSwitch.style.setProperty('--active-color', (state.tasks[activeIndex] || {}).color || 'var(--software)');
 
-        ui.softwareSwitchLabel.textContent = taskName('software');
-        ui.warehouseSwitchLabel.textContent = taskName('warehouse');
-        ui.softwareName.textContent = taskName('software');
-        ui.warehouseName.textContent = taskName('warehouse');
+        state.tasks.forEach(t => {
+          const refs = switchEls[t.id];
+          if (!refs) return;
+          const isActive = t.id === selectedTask;
+          refs.btn.classList.toggle('active', isActive);
+          refs.label.textContent = t.name;
+          refs.btn.style.background = (list && isActive) ? t.color : '';
+        });
 
         if (active) {
           ui.currentStatus.textContent = taskName(active);
@@ -442,17 +658,22 @@
           ui.pauseButton.classList.add('paused');
         }
 
-        const softwareMs = liveTotalMs('software', now);
-        const warehouseMs = liveTotalMs('warehouse', now);
-        ui.softwareReported.textContent = formatReported(softwareMs);
-        ui.warehouseReported.textContent = formatReported(warehouseMs);
-        ui.softwareActual.textContent = `Actual: ${formatActual(softwareMs)}`;
-        ui.warehouseActual.textContent = `Actual: ${formatActual(warehouseMs)}`;
+        state.tasks.forEach(t => {
+          const refs = totalsEls[t.id];
+          if (!refs) return;
+          const ms = liveTotalMs(t.id, now);
+          refs.name.textContent = t.name;
+          refs.reported.textContent = formatReported(ms);
+          refs.actual.textContent = `Actual: ${formatActual(ms)}`;
+        });
       }
+
+      /* ---------- adjust ---------- */
 
       function showAdjustment(task) {
         adjustTask = task;
         ui.adjustTitle.textContent = `Adjust ${taskName(task)}`;
+        ui.adjustMinutes.setCustomValidity('');
         ui.adjustMinutes.value = '';
         ui.adjustDialog.showModal();
         setTimeout(() => ui.adjustMinutes.focus(), 50);
@@ -467,12 +688,14 @@
         }
 
         ui.adjustMinutes.setCustomValidity('');
-        state.adjustmentsMs[adjustTask] += Math.round(minutes * 60000);
+        state.adjustmentsMs[adjustTask] = (state.adjustmentsMs[adjustTask] || 0) + Math.round(minutes * 60000);
         saveState();
         render();
         showToast(`${minutes > 0 ? 'Added' : 'Subtracted'} ${Math.abs(minutes)} minutes`);
         return true;
       }
+
+      /* ---------- rename ---------- */
 
       function showRename(task) {
         renameTask = task;
@@ -495,63 +718,109 @@
         }
 
         ui.renameInput.setCustomValidity('');
-        if (!state.taskNames) state.taskNames = { ...DEFAULT_TASK_NAMES };
-        state.taskNames[renameTask] = name;
+        const t = taskById(renameTask);
+        if (t) t.name = name;
         saveState();
         render();
         showToast('Task renamed');
         return true;
       }
 
+      /* ---------- add ---------- */
+
+      function showAdd() {
+        ui.addInput.setCustomValidity('');
+        ui.addInput.value = '';
+        ui.addDialog.showModal();
+        setTimeout(() => ui.addInput.focus(), 50);
+      }
+
+      function applyAdd() {
+        const name = ui.addInput.value.trim();
+        if (!name) {
+          ui.addInput.setCustomValidity('Enter a task name.');
+          ui.addInput.reportValidity();
+          return false;
+        }
+
+        ui.addInput.setCustomValidity('');
+        const id = makeTaskId();
+        state.tasks.push({ id, name, color: nextColor() });
+        state.totalsMs[id] = 0;
+        state.adjustmentsMs[id] = 0;
+        saveState();
+        renderStructure();
+        render();
+        showToast(`${name} added`);
+        return true;
+      }
+
+      /* ---------- remove ---------- */
+
+      function showRemove(task) {
+        if (state.tasks.length <= 1) return;
+        removeTask = task;
+        const hasTime = liveTotalMs(task) > 0;
+        ui.removeMessage.textContent = hasTime
+          ? `"${taskName(task)}" has time logged today. Removing it discards that time for today (already-submitted days are unaffected).`
+          : `Remove "${taskName(task)}" from the tracker?`;
+        ui.removeDialog.showModal();
+      }
+
+      function applyRemove() {
+        const id = removeTask;
+        if (!id || state.tasks.length <= 1) return true;
+
+        if (state.activeTask === id) {
+          state.activeTask = null;
+          state.startedAt = null;
+          state.sessionStartedAt = null;
+        }
+        state.tasks = state.tasks.filter(t => t.id !== id);
+        delete state.totalsMs[id];
+        delete state.adjustmentsMs[id];
+        if (!validTaskId(state.lastSelectedTask)) state.lastSelectedTask = state.tasks[0].id;
+        if (selectedTask === id) selectedTask = state.tasks[0].id;
+
+        saveState();
+        renderStructure();
+        render();
+        showToast('Task removed');
+        return true;
+      }
+
+      /* ---------- CSV ---------- */
+
       function csvEscape(value) {
         const text = String(value ?? '');
         return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
       }
 
-      function recordForCurrentDay() {
-        const softwareMs = liveTotalMs('software');
-        const warehouseMs = liveTotalMs('warehouse');
-        return {
-          date: state.date,
-          softwareMs,
-          warehouseMs,
-          softwareAdjustmentMs: state.adjustmentsMs.software,
-          warehouseAdjustmentMs: state.adjustmentsMs.warehouse,
-          note: 'Current day',
-          savedAt: new Date().toISOString()
-        };
-      }
-
       function exportCsv() {
         handleDateBoundary();
-        const records = [...loadHistory(), recordForCurrentDay()];
-        const sw = taskName('software');
-        const wh = taskName('warehouse');
+        const days = [...loadHistory().map(normalizeDayRecord), dayRecord('Current day', true)];
         const headers = [
           'Date',
-          `${sw} Actual Minutes`,
-          `${sw} Reported Hours`,
-          `${sw} Manual Adjustment Minutes`,
-          `${wh} Actual Minutes`,
-          `${wh} Reported Hours`,
-          `${wh} Manual Adjustment Minutes`,
+          'Task',
+          'Actual Minutes',
+          'Reported Hours',
+          'Manual Adjustment Minutes',
           'Note',
           'Saved At'
         ];
-        const rows = records.map(r => {
-          const softwareMinutes = Math.round(r.softwareMs / 60000);
-          const warehouseMinutes = Math.round(r.warehouseMs / 60000);
-          return [
-            r.date,
-            softwareMinutes,
-            (roundToQuarterHour(r.softwareMs) / 60).toFixed(2),
-            Math.round((r.softwareAdjustmentMs || 0) / 60000),
-            warehouseMinutes,
-            (roundToQuarterHour(r.warehouseMs) / 60).toFixed(2),
-            Math.round((r.warehouseAdjustmentMs || 0) / 60000),
-            r.note || '',
-            r.savedAt || ''
-          ].map(csvEscape).join(',');
+        const rows = [];
+        days.forEach(day => {
+          (day.tasks || []).forEach(t => {
+            rows.push([
+              day.date,
+              t.name,
+              Math.round((t.netMs || 0) / 60000),
+              (roundToQuarterHour(t.netMs || 0) / 60).toFixed(2),
+              Math.round((t.adjustmentMs || 0) / 60000),
+              day.note || '',
+              day.savedAt || ''
+            ].map(csvEscape).join(','));
+          });
         });
         const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv;charset=utf-8' });
         const url = URL.createObjectURL(blob);
@@ -565,38 +834,24 @@
         showToast('CSV exported');
       }
 
+      /* ---------- submit ---------- */
+
       function submitAndReset() {
         if (state.activeTask) settleRunningTime();
         archiveState('Timesheet submitted');
-        const keepTask = state.lastSelectedTask || selectedTask;
-        const keepNames = state.taskNames;
-        state = newState();
-        state.lastSelectedTask = keepTask;
-        state.taskNames = keepNames || { ...DEFAULT_TASK_NAMES };
-        selectedTask = keepTask;
+        const keepTasks = state.tasks;
+        const keepLast = state.lastSelectedTask;
+        state = freshDayState(keepTasks);
+        if (keepLast && state.tasks.some(t => t.id === keepLast)) state.lastSelectedTask = keepLast;
+        selectedTask = state.lastSelectedTask;
         saveState();
+        renderStructure();
         render();
         showToast('Timesheet saved and timer reset');
       }
 
-      ui.softwareButton.addEventListener('click', () => switchTask('software'));
-      ui.warehouseButton.addEventListener('click', () => switchTask('warehouse'));
-      ui.pauseButton.addEventListener('click', togglePause);
-      ui.exportButton.addEventListener('click', exportCsv);
-      ui.submitButton.addEventListener('click', () => ui.submitDialog.showModal());
-      ui.confirmSubmit.addEventListener('click', submitAndReset);
+      /* ---------- dialog close (robust across mobile Safari) ---------- */
 
-      document.querySelectorAll('[data-adjust]').forEach(button => {
-        button.addEventListener('click', () => showAdjustment(button.dataset.adjust));
-      });
-
-      document.querySelectorAll('[data-rename]').forEach(button => {
-        button.addEventListener('click', () => showRename(button.dataset.rename));
-      });
-
-      // Close a modal <dialog> and hide it. The requestAnimationFrame fallback
-      // covers mobile Safari versions that occasionally leave the dialog
-      // visually open after close() is called from a button handler.
       function closeDialog(dlg) {
         if (document.activeElement && dlg.contains(document.activeElement)) {
           document.activeElement.blur();
@@ -611,50 +866,37 @@
         });
       }
 
-      function closeAdjustmentDialog() {
-        closeDialog(ui.adjustDialog);
+      // Wire a dialog whose confirm button runs `apply` (returns false to keep
+      // the dialog open on validation failure) and whose form submits the same.
+      function wireDialog(dlg, form, confirmBtn, cancelBtn, apply) {
+        const commit = () => { if (apply()) closeDialog(dlg); };
+        confirmBtn.addEventListener('click', commit);
+        cancelBtn.addEventListener('click', () => closeDialog(dlg));
+        form.addEventListener('submit', event => {
+          event.preventDefault();
+          commit();
+        });
       }
 
-      ui.cancelAdjustment.addEventListener('click', closeAdjustmentDialog);
+      /* ---------- events ---------- */
 
-      function saveAdjustment() {
-        if (!applyAdjustment()) return;
-        closeAdjustmentDialog();
-      }
+      ui.pauseButton.addEventListener('click', togglePause);
+      ui.exportButton.addEventListener('click', exportCsv);
+      ui.submitButton.addEventListener('click', () => ui.submitDialog.showModal());
+      ui.confirmSubmit.addEventListener('click', submitAndReset);
+      ui.addTaskButton.addEventListener('click', showAdd);
 
-      ui.saveAdjustment.addEventListener('click', saveAdjustment);
+      wireDialog(ui.adjustDialog, ui.adjustForm, ui.saveAdjustment, ui.cancelAdjustment, applyAdjustment);
+      wireDialog(ui.renameDialog, ui.renameForm, ui.saveRename, ui.cancelRename, applyRename);
+      wireDialog(ui.addDialog, ui.addForm, ui.saveAdd, ui.cancelAdd, applyAdd);
+      wireDialog(ui.removeDialog, ui.removeForm, ui.confirmRemove, ui.cancelRemove, applyRemove);
 
-      ui.adjustForm.addEventListener('submit', event => {
-        event.preventDefault();
-        saveAdjustment();
-      });
+      ui.adjustMinutes.addEventListener('input', () => ui.adjustMinutes.setCustomValidity(''));
+      ui.renameInput.addEventListener('input', () => ui.renameInput.setCustomValidity(''));
+      ui.addInput.addEventListener('input', () => ui.addInput.setCustomValidity(''));
 
-      ui.adjustMinutes.addEventListener('input', () => {
-        ui.adjustMinutes.setCustomValidity('');
-      });
-
-      function closeRenameDialog() {
-        closeDialog(ui.renameDialog);
-      }
-
-      ui.cancelRename.addEventListener('click', closeRenameDialog);
-
-      function saveRename() {
-        if (!applyRename()) return;
-        closeRenameDialog();
-      }
-
-      ui.saveRename.addEventListener('click', saveRename);
-
-      ui.renameForm.addEventListener('submit', event => {
-        event.preventDefault();
-        saveRename();
-      });
-
-      ui.renameInput.addEventListener('input', () => {
-        ui.renameInput.setCustomValidity('');
-      });
-
+      // Swipe to move to the previous/next task — only in slider mode, so it
+      // doesn't fight the vertical scroll of the list.
       ui.taskSwitch.addEventListener('touchstart', event => {
         touchStartX = event.changedTouches[0].clientX;
       }, { passive: true });
@@ -663,8 +905,11 @@
         if (touchStartX === null) return;
         const delta = event.changedTouches[0].clientX - touchStartX;
         touchStartX = null;
+        if (usingList()) return;
         if (Math.abs(delta) < 35) return;
-        switchTask(delta > 0 ? 'warehouse' : 'software');
+        const idx = Math.max(0, state.tasks.findIndex(t => t.id === selectedTask));
+        const nextIdx = Math.min(state.tasks.length - 1, Math.max(0, idx + (delta > 0 ? 1 : -1)));
+        if (nextIdx !== idx) switchTask(state.tasks[nextIdx].id);
       }, { passive: true });
 
       document.addEventListener('visibilitychange', () => {
@@ -676,11 +921,15 @@
 
       window.addEventListener('storage', () => {
         state = loadState();
+        renderStructure();
         render();
       });
 
+      /* ---------- init ---------- */
+
+      renderStructure();
       handleDateBoundary();
-      selectedTask = state.activeTask || state.lastSelectedTask || 'software';
+      selectedTask = validTaskId(state.activeTask || state.lastSelectedTask);
       render();
       setInterval(() => {
         handleDateBoundary();
